@@ -481,6 +481,7 @@ const app = {
   // View Routing Management
   switchView(viewId, quoteNo = null) {
     appState.activeView = viewId;
+    this.stopMapAnimation();
     
     // Hide active menu states, apply to selected
     document.querySelectorAll('.sidebar-menu li').forEach(item => {
@@ -511,7 +512,7 @@ const app = {
       appState.selectedQuoteNo = quoteNo;
       this.renderQuotationDetailReview(quoteNo);
     } else if (viewId === 'risk-map-view') {
-      this.drawAccumulationMap();
+      this.startMapAnimation();
     } else if (viewId === 'authority-matrix-view') {
       this.renderAuthorityMatrix();
     } else if (viewId === 'admin-config-view') {
@@ -1734,6 +1735,90 @@ const app = {
   },
 
   // Interactive geospatial canvas map drawer (Refined Dark Theme Look)
+  startMapAnimation() {
+    this.stopMapAnimation();
+    this.mapSweepAngle = this.mapSweepAngle || 0;
+    this.mapEventsInitialized = this.mapEventsInitialized || false;
+    
+    const canvas = document.getElementById('map-canvas');
+    if (canvas && !this.mapEventsInitialized) {
+      this.initMapEvents(canvas);
+    }
+    
+    const animate = () => {
+      this.mapSweepAngle += 0.012;
+      if (this.mapSweepAngle > Math.PI * 2) {
+        this.mapSweepAngle = 0;
+      }
+      this.drawAccumulationMap();
+      if (appState.activeView === 'risk-map-view') {
+        this.mapAnimId = requestAnimationFrame(animate);
+      }
+    };
+    this.mapAnimId = requestAnimationFrame(animate);
+  },
+
+  stopMapAnimation() {
+    if (this.mapAnimId) {
+      cancelAnimationFrame(this.mapAnimId);
+      this.mapAnimId = null;
+    }
+  },
+
+  initMapEvents(canvas) {
+    this.mapEventsInitialized = true;
+    this.mousePos = { x: null, y: null };
+    this.hoveredQuote = null;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      this.mousePos.x = (e.clientX - rect.left) * scaleX;
+      this.mousePos.y = (e.clientY - rect.top) * scaleY;
+
+      const centerLat = 53.4808;
+      const centerLng = -2.2426;
+      const mapWidth = canvas.width;
+      const mapHeight = canvas.height;
+      const latToY = (lat) => mapHeight / 2 - (lat - centerLat) * 3500;
+      const lngToX = (lng) => mapWidth / 2 + (lng - centerLng) * 5500;
+
+      let found = null;
+      appState.quotations.forEach(q => {
+        if (q.quoteNo === 'QT2024004' && q.latitude === 51.5074) return; // Skip London
+        const px = lngToX(q.longitude);
+        const py = latToY(q.latitude);
+        const dist = Math.sqrt(Math.pow(this.mousePos.x - px, 2) + Math.pow(this.mousePos.y - py, 2));
+        if (dist <= 12) {
+          found = q;
+        }
+      });
+      this.hoveredQuote = found;
+
+      if (!this.mapAnimId) {
+        this.drawAccumulationMap();
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      this.mousePos = { x: null, y: null };
+      this.hoveredQuote = null;
+      if (!this.mapAnimId) {
+        this.drawAccumulationMap();
+      }
+    });
+
+    canvas.addEventListener('click', () => {
+      if (this.hoveredQuote) {
+        appState.selectedQuoteNo = this.hoveredQuote.quoteNo;
+        if (!this.mapAnimId) {
+          this.drawAccumulationMap();
+        }
+      }
+    });
+  },
+
   drawAccumulationMap() {
     const canvas = document.getElementById('map-canvas');
     if (!canvas) return;
@@ -1745,14 +1830,12 @@ const app = {
     const mapWidth = canvas.width;
     const mapHeight = canvas.height;
     
-    const isDarkMode = document.body.classList.contains('dark-mode');
-    
     // Set custom background based on active theme
-    ctx.fillStyle = isDarkMode ? '#0d1321' : '#0f172a';
+    ctx.fillStyle = '#090d16';
     ctx.fillRect(0, 0, mapWidth, mapHeight);
     
     // Draw sci-fi style grid lines
-    ctx.strokeStyle = isDarkMode ? 'rgba(30, 41, 59, 0.5)' : 'rgba(30, 41, 59, 0.4)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
     ctx.lineWidth = 1;
     const gridSize = 40;
     for (let x = 0; x < mapWidth; x += gridSize) {
@@ -1768,22 +1851,160 @@ const app = {
       ctx.stroke();
     }
 
-    // Draw high-risk Catastrophe flood zone layer polygon
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
-    ctx.lineWidth = 1.5;
+    // Draw realistic River Irwell winding path
+    ctx.save();
+    ctx.strokeStyle = 'rgba(20, 110, 185, 0.15)';
+    ctx.lineWidth = 16;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(100, 150);
-    ctx.lineTo(350, 200);
-    ctx.lineTo(500, 420);
-    ctx.lineTo(250, 480);
+    ctx.moveTo(-50, 220);
+    ctx.bezierCurveTo(200, 180, 220, 380, 480, 290);
+    ctx.bezierCurveTo(620, 250, 680, 390, 850, 360);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    // River label
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.font = 'italic 500 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.translate(350, 315);
+    ctx.rotate(-0.18);
+    ctx.fillText('RIVER IRWELL', 0, 0);
+    ctx.restore();
+
+    // Draw District Borders
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.setLineDash([3, 5]);
+    ctx.lineWidth = 1.2;
+
+    // Sector 1: Salford
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.008)';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(340, 0);
+    ctx.lineTo(260, 240);
+    ctx.lineTo(0, 200);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.55)';
-    ctx.font = 'bold 9px sans-serif';
-    ctx.fillText('CAT-ZONE FLOOD BANDS', 120, 175);
+    // Sector 2: City Centre
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.006)';
+    ctx.beginPath();
+    ctx.moveTo(340, 0);
+    ctx.lineTo(800, 0);
+    ctx.lineTo(800, 280);
+    ctx.lineTo(500, 320);
+    ctx.lineTo(260, 240);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Sector 3: Castlefield / Hulme
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.008)';
+    ctx.beginPath();
+    ctx.moveTo(0, 200);
+    ctx.lineTo(260, 240);
+    ctx.lineTo(500, 320);
+    ctx.lineTo(440, 500);
+    ctx.lineTo(0, 500);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // District Labels
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+    ctx.font = '900 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('SALFORD WARD', 110, 80);
+    ctx.fillText('MANCHESTER CITY CENTRE', 540, 110);
+    ctx.fillText('CASTLEFIELD', 210, 420);
+    ctx.fillText('PICCADILLY', 720, 240);
+
+    // Draw Major Roads
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+    ctx.beginPath();
+    ctx.moveTo(380, 0);
+    ctx.lineTo(380, 500);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 340);
+    ctx.lineTo(800, 340);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.font = '500 7px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('A56 DEANSGATE', 386, 40);
+    ctx.fillText('A57 REGENT RD', 15, 335);
+
+    // Draw multi-risk Catastrophe flood zone layers
+    // High Hazard (Zone 3)
+    const zone3Pts = [[140, 180], [380, 220], [490, 410], [270, 460]];
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(zone3Pts[0][0], zone3Pts[0][1]);
+    for(let i = 1; i < zone3Pts.length; i++) ctx.lineTo(zone3Pts[i][0], zone3Pts[i][1]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Hatch pattern in Zone 3
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(zone3Pts[0][0], zone3Pts[0][1]);
+    for(let i = 1; i < zone3Pts.length; i++) ctx.lineTo(zone3Pts[i][0], zone3Pts[i][1]);
+    ctx.closePath();
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.08)';
+    ctx.lineWidth = 0.8;
+    for (let offset = -400; offset < 900; offset += 15) {
+      ctx.beginPath();
+      ctx.moveTo(offset, 0);
+      ctx.lineTo(offset + 500, 500);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Medium Hazard (Zone 2)
+    const zone2Pts = [[110, 160], [410, 200], [530, 440], [240, 490]];
+    ctx.fillStyle = 'rgba(249, 115, 22, 0.05)';
+    ctx.strokeStyle = 'rgba(249, 115, 22, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(zone2Pts[0][0], zone2Pts[0][1]);
+    for(let i = 1; i < zone2Pts.length; i++) ctx.lineTo(zone2Pts[i][0], zone2Pts[i][1]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Low Hazard (Zone 1)
+    const zone1Pts = [[80, 130], [440, 170], [570, 470], [210, 510]];
+    ctx.fillStyle = 'rgba(234, 179, 8, 0.02)';
+    ctx.strokeStyle = 'rgba(234, 179, 8, 0.1)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(zone1Pts[0][0], zone1Pts[0][1]);
+    for(let i = 1; i < zone1Pts.length; i++) ctx.lineTo(zone1Pts[i][0], zone1Pts[i][1]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.65)';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('▲ CAT-3 FLOOD ZONE', 155, 196);
 
     const quotes = appState.quotations;
     const latToY = (lat) => mapHeight / 2 - (lat - centerLat) * 3500;
@@ -1795,8 +2016,92 @@ const app = {
     const centerX = lngToX(centerLng);
     const centerY = latToY(centerLat);
 
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.35)';
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.04)';
+    // Draw compass rose
+    ctx.save();
+    const compX = mapWidth - 45;
+    const compY = 45;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(compX, compY, 20, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(compX - 25, compY);
+    ctx.lineTo(compX + 25, compY);
+    ctx.moveTo(compX, compY - 25);
+    ctx.lineTo(compX, compY + 25);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
+    ctx.beginPath();
+    ctx.moveTo(compX, compY - 18);
+    ctx.lineTo(compX - 5, compY - 3);
+    ctx.lineTo(compX, compY - 6);
+    ctx.lineTo(compX + 5, compY - 3);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', compX, compY - 22);
+    ctx.restore();
+
+    // Scale bar
+    ctx.save();
+    const scX = mapWidth - 110;
+    const scY = mapHeight - 30;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(scX, scY);
+    ctx.lineTo(scX + 70, scY);
+    ctx.moveTo(scX, scY - 4);
+    ctx.lineTo(scX, scY + 2);
+    ctx.moveTo(scX + 35, scY - 4);
+    ctx.lineTo(scX + 35, scY + 2);
+    ctx.moveTo(scX + 70, scY - 4);
+    ctx.lineTo(scX + 70, scY + 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.font = '7px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('0', scX, scY - 8);
+    ctx.fillText('2.5 km', scX + 35, scY - 8);
+    ctx.fillText('5 km', scX + 70, scY - 8);
+    ctx.restore();
+
+    // Border Axis Ticks
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    const pad = 20;
+    ctx.strokeRect(pad, pad, mapWidth - pad * 2, mapHeight - pad * 2);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.font = '7px monospace';
+    for (let y = 60; y < mapHeight - pad; y += 80) {
+      const latVal = centerLat + (mapHeight / 2 - y) / 3500;
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      ctx.lineTo(pad + 4, y);
+      ctx.stroke();
+      ctx.textAlign = 'left';
+      ctx.fillText(`${latVal.toFixed(4)}°N`, pad + 6, y + 2.5);
+    }
+    for (let x = 80; x < mapWidth - pad; x += 120) {
+      const lngVal = centerLng + (x - mapWidth / 2) / 5500;
+      ctx.beginPath();
+      ctx.moveTo(x, mapHeight - pad);
+      ctx.lineTo(x, mapHeight - pad - 4);
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillText(`${lngVal.toFixed(4)}°W`, x, mapHeight - pad - 6);
+    }
+
+    // Draw main accumulation circle
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.02)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -1805,17 +2110,91 @@ const app = {
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // concentric inner circles
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.12)';
+    ctx.setLineDash([2, 4]);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radiusPx * 0.5, 0, 2 * Math.PI);
+    ctx.arc(centerX, centerY, radiusPx * 0.25, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Crosshair at center
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 8, centerY);
+    ctx.lineTo(centerX + 8, centerY);
+    ctx.moveTo(centerX, centerY - 8);
+    ctx.lineTo(centerX, centerY + 8);
+    ctx.stroke();
+
     ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
-    ctx.fillRect(centerX - 45, centerY - radiusPx - 25, 90, 20);
+    ctx.fillRect(centerX - 42, centerY - radiusPx - 24, 84, 17);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeRect(centerX - 42, centerY - radiusPx - 24, 84, 17);
     ctx.fillStyle = '#fff';
-    ctx.font = '500 10px sans-serif';
+    ctx.font = '600 8.5px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`Radius: ${radiusScale}km`, centerX, centerY - radiusPx - 11);
+    ctx.fillText(`ZONE: ${radiusScale}km`, centerX, centerY - radiusPx - 12);
+
+    // Sonar sweep rotation animation
+    if (this.mapSweepAngle !== undefined) {
+      const sweepRadius = radiusPx * 1.4;
+      const sweepX = centerX + Math.cos(this.mapSweepAngle) * sweepRadius;
+      const sweepY = centerY + Math.sin(this.mapSweepAngle) * sweepRadius;
+
+      ctx.save();
+      const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, sweepRadius);
+      grad.addColorStop(0, 'rgba(56, 189, 248, 0.12)');
+      grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      ctx.fillStyle = grad;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      const steps = 30;
+      for (let i = 0; i <= steps; i++) {
+        const angle = this.mapSweepAngle - (i / steps) * 0.6;
+        ctx.lineTo(centerX + Math.cos(angle) * sweepRadius, centerY + Math.sin(angle) * sweepRadius);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(sweepX, sweepY);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     let insideExposure = 0;
     let count = 0;
 
+    // Draw connection lines first so they are under the nodes
     quotes.forEach(q => {
+      if (q.quoteNo === 'QT2024004' && q.latitude === 51.5074) return;
+      const px = lngToX(q.longitude);
+      const py = latToY(q.latitude);
+      const dist = Math.sqrt(Math.pow(q.latitude - centerLat, 2) + Math.pow(q.longitude - centerLng, 2)) * 111;
+      const isInside = dist <= radiusScale;
+
+      if (isInside) {
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+
+    // Draw points & labels
+    quotes.forEach(q => {
+      if (q.quoteNo === 'QT2024004' && q.latitude === 51.5074) return;
       const px = lngToX(q.longitude);
       const py = latToY(q.latitude);
 
@@ -1828,29 +2207,147 @@ const app = {
       }
 
       let pointColor = '#10b981';
-      if (q.riskCategory === 'Referred') pointColor = '#f59e0b';
-      if (q.riskCategory === 'Deferred') pointColor = '#ef4444';
+      let colorRGB = '16, 185, 129';
+      if (q.riskCategory === 'Referred') { pointColor = '#f59e0b'; colorRGB = '245, 158, 11'; }
+      if (q.riskCategory === 'Deferred') { pointColor = '#ef4444'; colorRGB = '239, 68, 68'; }
 
-      ctx.beginPath();
-      ctx.arc(px, py, 7, 0, 2 * Math.PI);
-      ctx.fillStyle = pointColor;
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#fff';
-      ctx.stroke();
+      const isSelected = q.quoteNo === appState.selectedQuoteNo;
+      const isHovered = this.hoveredQuote && q.quoteNo === this.hoveredQuote.quoteNo;
 
-      if (q.quoteNo === appState.selectedQuoteNo) {
-        ctx.strokeStyle = pointColor;
+      if (isSelected || isHovered) {
+        const t = Date.now() / 1000;
+        const radiusMultiplier = 1.0 + (t % 1.5) / 1.5;
+        const opacity = 1.0 - (t % 1.5) / 1.5;
+
+        ctx.strokeStyle = `rgba(${colorRGB}, ${opacity * 0.7})`;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(px, py, 15, 0, 2 * Math.PI);
+        ctx.arc(px, py, 7 * radiusMultiplier * 1.8, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(${colorRGB}, ${opacity * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 7 * radiusMultiplier * 2.8, 0, 2 * Math.PI);
         ctx.stroke();
       }
 
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, 2 * Math.PI);
+      ctx.fillStyle = pointColor;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+
+      // Shadowed text labels
+      ctx.font = '600 9.5px sans-serif';
+      const labelText = q.customerName;
+      const textWidth = ctx.measureText(labelText).width;
+      
+      ctx.fillStyle = 'rgba(11, 15, 25, 0.75)';
+      ctx.fillRect(px + 10, py - 8, textWidth + 6, 14);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 10, py - 8, textWidth + 6, 14);
+
       ctx.fillStyle = '#fff';
-      ctx.font = '600 10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(q.customerName, px + 12, py + 3);
+      ctx.fillText(labelText, px + 13, py + 2);
     });
+
+    // Crosshair guidelines for mouse
+    if (this.mousePos && this.mousePos.x !== null) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([2, 4]);
+
+      ctx.beginPath();
+      ctx.moveTo(this.mousePos.x, pad);
+      ctx.lineTo(this.mousePos.x, mapHeight - pad);
+      ctx.moveTo(pad, this.mousePos.y);
+      ctx.lineTo(mapWidth - pad, this.mousePos.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const mouseLat = centerLat + (mapHeight / 2 - this.mousePos.y) / 3500;
+      const mouseLng = centerLng + (this.mousePos.x - mapWidth / 2) / 5500;
+      
+      ctx.fillStyle = 'rgba(11, 15, 25, 0.9)';
+      ctx.fillRect(32, mapHeight - 48, 145, 22);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(32, mapHeight - 48, 145, 22);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '500 8.5px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`GRID: ${mouseLat.toFixed(5)}N, ${Math.abs(mouseLng).toFixed(5)}W`, 38, mapHeight - 34);
+    }
+
+    // Hover Tooltip on Canvas
+    if (this.hoveredQuote) {
+      const q = this.hoveredQuote;
+      const px = lngToX(q.longitude);
+      const py = latToY(q.latitude);
+
+      const ttW = 160;
+      const ttH = 92;
+      let ttX = px + 15;
+      let ttY = py - ttH - 15;
+      if (ttX + ttW > mapWidth - pad) ttX = px - ttW - 15;
+      if (ttY < pad) ttY = py + 15;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.roundRect(ttX, ttY, ttW, ttH, 6);
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      
+      let borderStyle = 'rgba(16, 185, 129, 0.5)';
+      if (q.riskCategory === 'Referred') borderStyle = 'rgba(245, 158, 11, 0.5)';
+      if (q.riskCategory === 'Deferred') borderStyle = 'rgba(239, 68, 68, 0.5)';
+      
+      ctx.strokeStyle = borderStyle;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(q.customerName.toUpperCase(), ttX + 10, ttY + 16);
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ttX + 10, ttY + 24);
+      ctx.lineTo(ttX + ttW - 10, ttY + 24);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = '8px sans-serif';
+      ctx.fillText('LOB / Product:', ttX + 10, ttY + 38);
+      ctx.fillText('Sum Insured:', ttX + 10, ttY + 52);
+      ctx.fillText('Risk Category:', ttX + 10, ttY + 66);
+      ctx.fillText('Coordinates:', ttX + 10, ttY + 80);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(q.lob + ' / ' + q.product, ttX + ttW - 10, ttY + 38);
+      ctx.fillText(`£${q.sumInsured.toLocaleString()}`, ttX + ttW - 10, ttY + 52);
+      
+      ctx.fillStyle = q.riskCategory === 'Deferred' ? '#ef4444' : q.riskCategory === 'Referred' ? '#f59e0b' : '#10b981';
+      ctx.fillText(q.riskCategory, ttX + ttW - 10, ttY + 66);
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '8px monospace';
+      ctx.fillText(`${q.latitude.toFixed(4)}, ${q.longitude.toFixed(4)}`, ttX + ttW - 10, ttY + 80);
+
+      ctx.restore();
+    }
 
     document.getElementById('map-overlay-count').textContent = count;
     document.getElementById('map-overlay-exposure').textContent = `£${insideExposure.toLocaleString()}`;
