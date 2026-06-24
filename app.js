@@ -1827,131 +1827,166 @@ const app = {
     const centerLat = 53.4808;
     const centerLng = -2.2426;
     
-    const mapWidth = canvas.width;
-    const mapHeight = canvas.height;
+    const mapWidth = 800;
+    const mapHeight = 500;
     
-    // Set custom background based on active theme
-    ctx.fillStyle = '#090d16';
+    // Retina DPI scale handling
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = `${mapWidth}px`;
+    canvas.style.height = `${mapHeight}px`;
+    if (canvas.width !== mapWidth * dpr || canvas.height !== mapHeight * dpr) {
+      canvas.width = mapWidth * dpr;
+      canvas.height = mapHeight * dpr;
+    }
+    
+    ctx.resetTransform();
+    ctx.scale(dpr, dpr);
+    
+    // 1. Off-white/light-grey background base
+    ctx.fillStyle = '#eceef1';
     ctx.fillRect(0, 0, mapWidth, mapHeight);
     
-    // Draw sci-fi style grid lines
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
-    ctx.lineWidth = 1;
-    const gridSize = 40;
-    for (let x = 0; x < mapWidth; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, mapHeight);
-      ctx.stroke();
-    }
-    for (let y = 0; y < mapHeight; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(mapWidth, y);
-      ctx.stroke();
-    }
+    // 2. Seeded random generator for reproducible street layout matching the high-density reference image
+    let streetSeed = 888;
+    const sRandom = () => {
+      const x = Math.sin(streetSeed++) * 10000;
+      return x - Math.floor(x);
+    };
 
-    // Draw realistic River Irwell winding path
-    ctx.save();
-    ctx.strokeStyle = 'rgba(20, 110, 185, 0.15)';
-    ctx.lineWidth = 16;
+    // 3. Draw pastel green park shapes
+    ctx.fillStyle = '#d4efdf';
+    
+    // Park 1: Left Salford park
+    ctx.beginPath();
+    ctx.moveTo(80, 200);
+    ctx.lineTo(220, 220);
+    ctx.lineTo(190, 310);
+    ctx.lineTo(90, 280);
+    ctx.closePath();
+    ctx.fill();
+
+    // Park 2: Right City Centre park next to river
+    ctx.beginPath();
+    ctx.moveTo(690, 100);
+    ctx.lineTo(760, 80);
+    ctx.lineTo(800, 190);
+    ctx.lineTo(720, 180);
+    ctx.closePath();
+    ctx.fill();
+
+    // Park 3: Lower Castlefield park
+    ctx.beginPath();
+    ctx.moveTo(250, 420);
+    ctx.lineTo(390, 450);
+    ctx.lineTo(330, 500);
+    ctx.lineTo(240, 480);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Draw large diagonal sky-blue river and smaller branching stream
+    ctx.fillStyle = '#7ec6eb';
+    ctx.beginPath();
+    ctx.moveTo(520, -20);
+    ctx.bezierCurveTo(560, 140, 680, 320, 820, 520);
+    ctx.lineTo(960, 520);
+    ctx.bezierCurveTo(820, 320, 700, 140, 660, -20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Secondary streams
+    ctx.strokeStyle = '#7ec6eb';
+    ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(-50, 220);
-    ctx.bezierCurveTo(200, 180, 220, 380, 480, 290);
-    ctx.bezierCurveTo(620, 250, 680, 390, 850, 360);
-    ctx.stroke();
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
-
-    // River label
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
-    ctx.font = 'italic 500 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.save();
-    ctx.translate(350, 315);
-    ctx.rotate(-0.18);
-    ctx.fillText('RIVER IRWELL', 0, 0);
-    ctx.restore();
-
-    // Draw District Borders
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.setLineDash([3, 5]);
-    ctx.lineWidth = 1.2;
-
-    // Sector 1: Salford
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.008)';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(340, 0);
-    ctx.lineTo(260, 240);
-    ctx.lineTo(0, 200);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Sector 2: City Centre
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.006)';
-    ctx.beginPath();
-    ctx.moveTo(340, 0);
-    ctx.lineTo(800, 0);
-    ctx.lineTo(800, 280);
-    ctx.lineTo(500, 320);
-    ctx.lineTo(260, 240);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Sector 3: Castlefield / Hulme
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.008)';
-    ctx.beginPath();
-    ctx.moveTo(0, 200);
-    ctx.lineTo(260, 240);
-    ctx.lineTo(500, 320);
-    ctx.lineTo(440, 500);
-    ctx.lineTo(0, 500);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // District Labels
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
-    ctx.font = '900 10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('SALFORD WARD', 110, 80);
-    ctx.fillText('MANCHESTER CITY CENTRE', 540, 110);
-    ctx.fillText('CASTLEFIELD', 210, 420);
-    ctx.fillText('PICCADILLY', 720, 240);
-
-    // Draw Major Roads
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-    ctx.beginPath();
-    ctx.moveTo(380, 0);
-    ctx.lineTo(380, 500);
+    ctx.moveTo(0, 420);
+    ctx.bezierCurveTo(120, 360, 210, 400, 320, 310);
+    ctx.bezierCurveTo(400, 240, 480, 270, 590, 230);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(0, 340);
-    ctx.lineTo(800, 340);
+    ctx.moveTo(0, 110);
+    ctx.bezierCurveTo(80, 90, 110, 50, 20, -10);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
-    ctx.font = '500 7px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('A56 DEANSGATE', 386, 40);
-    ctx.fillText('A57 REGENT RD', 15, 335);
+    // 5. Draw high-density street grid
+    ctx.strokeStyle = '#dfdfdf'; // Subtle grey secondary streets
+    ctx.lineWidth = 1.3;
 
-    // Draw multi-risk Catastrophe flood zone layers
+    // We draw vertical grid paths (streets)
+    for (let i = 0; i < 28; i++) {
+      const x = 20 + i * 28 + sRandom() * 8;
+      for (let j = 0; j < 8; j++) {
+        const yStart = j * 70 + sRandom() * 15;
+        const yEnd = yStart + 45 + sRandom() * 15;
+        
+        // Skip parts of vertical streets that overlap the wide river corridor
+        if (x > 530 && x < 830 && yStart < 350) continue;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, yStart);
+        ctx.lineTo(x, yEnd);
+        ctx.stroke();
+      }
+    }
+    // We draw horizontal grid paths (streets)
+    for (let i = 0; i < 20; i++) {
+      const y = 20 + i * 26 + sRandom() * 8;
+      for (let j = 0; j < 8; j++) {
+        const xStart = j * 110 + sRandom() * 20;
+        const xEnd = xStart + 80 + sRandom() * 20;
+        
+        // Skip horizontal streets overlapping the wide river corridor
+        if (xStart > 530 && xEnd < 880 && y < 350) continue;
+        
+        ctx.beginPath();
+        ctx.moveTo(xStart, y);
+        ctx.lineTo(xEnd, y);
+        ctx.stroke();
+      }
+    }
+
+    // 6. Draw primary arterials (Thick Black Highways)
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 5.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Highway 1: Diagonal cross from bottom-left to top-right
+    ctx.beginPath();
+    ctx.moveTo(0, 310);
+    ctx.bezierCurveTo(180, 240, 280, 110, 380, -20);
+    ctx.stroke();
+
+    // Highway 2: Loop crossover from top-left to bottom-right
+    ctx.beginPath();
+    ctx.moveTo(180, -20);
+    ctx.bezierCurveTo(320, 110, 480, 220, 820, 520);
+    ctx.stroke();
+
+    // Loop structure interchange at intersection (approx center x=250, y=140)
+    ctx.lineWidth = 4.5;
+    
+    // Cloverleaf loop 1
+    ctx.beginPath();
+    ctx.arc(245, 145, 18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Cloverleaf loop 2
+    ctx.beginPath();
+    ctx.arc(225, 160, 15, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Cloverleaf loop 3
+    ctx.beginPath();
+    ctx.arc(265, 130, 15, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 7. Draw multi-risk Catastrophe flood zone layers (clean translucent overlays)
     // High Hazard (Zone 3)
     const zone3Pts = [[140, 180], [380, 220], [490, 410], [270, 460]];
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.12)';
+    ctx.strokeStyle = 'rgba(220, 38, 38, 0.4)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(zone3Pts[0][0], zone3Pts[0][1]);
@@ -1967,7 +2002,7 @@ const app = {
     for(let i = 1; i < zone3Pts.length; i++) ctx.lineTo(zone3Pts[i][0], zone3Pts[i][1]);
     ctx.closePath();
     ctx.clip();
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.08)';
+    ctx.strokeStyle = 'rgba(220, 38, 38, 0.08)';
     ctx.lineWidth = 0.8;
     for (let offset = -400; offset < 900; offset += 15) {
       ctx.beginPath();
@@ -1979,9 +2014,9 @@ const app = {
 
     // Medium Hazard (Zone 2)
     const zone2Pts = [[110, 160], [410, 200], [530, 440], [240, 490]];
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.05)';
-    ctx.strokeStyle = 'rgba(249, 115, 22, 0.18)';
-    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(217, 119, 6, 0.05)';
+    ctx.strokeStyle = 'rgba(217, 119, 6, 0.2)';
+    ctx.lineWidth = 1.0;
     ctx.beginPath();
     ctx.moveTo(zone2Pts[0][0], zone2Pts[0][1]);
     for(let i = 1; i < zone2Pts.length; i++) ctx.lineTo(zone2Pts[i][0], zone2Pts[i][1]);
@@ -1989,20 +2024,9 @@ const app = {
     ctx.fill();
     ctx.stroke();
 
-    // Low Hazard (Zone 1)
-    const zone1Pts = [[80, 130], [440, 170], [570, 470], [210, 510]];
-    ctx.fillStyle = 'rgba(234, 179, 8, 0.02)';
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.1)';
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(zone1Pts[0][0], zone1Pts[0][1]);
-    for(let i = 1; i < zone1Pts.length; i++) ctx.lineTo(zone1Pts[i][0], zone1Pts[i][1]);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.65)';
-    ctx.font = 'bold 8px monospace';
+    // Zone 3 Tag Label
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.75)';
+    ctx.font = 'bold 8.5px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('▲ CAT-3 FLOOD ZONE', 155, 196);
 
@@ -2016,11 +2040,11 @@ const app = {
     const centerX = lngToX(centerLng);
     const centerY = latToY(centerLat);
 
-    // Draw compass rose
+    // 8. Draw HUD Compass Rose
     ctx.save();
     const compX = mapWidth - 45;
     const compY = 45;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(compX, compY, 20, 0, 2 * Math.PI);
@@ -2032,7 +2056,7 @@ const app = {
     ctx.lineTo(compX, compY + 25);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.6)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.beginPath();
     ctx.moveTo(compX, compY - 18);
     ctx.lineTo(compX - 5, compY - 3);
@@ -2041,17 +2065,17 @@ const app = {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = 'bold 8px sans-serif';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.font = 'bold 8.5px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('N', compX, compY - 22);
     ctx.restore();
 
-    // Scale bar
+    // 9. Draw HUD Scale Bar
     ctx.save();
     const scX = mapWidth - 110;
     const scY = mapHeight - 30;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(scX, scY);
@@ -2064,22 +2088,22 @@ const app = {
     ctx.lineTo(scX + 70, scY + 2);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.font = '7px sans-serif';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.font = '7.5px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('0', scX, scY - 8);
     ctx.fillText('2.5 km', scX + 35, scY - 8);
     ctx.fillText('5 km', scX + 70, scY - 8);
     ctx.restore();
 
-    // Border Axis Ticks
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    // 10. Border Axis Ticks
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
     ctx.lineWidth = 1;
     const pad = 20;
     ctx.strokeRect(pad, pad, mapWidth - pad * 2, mapHeight - pad * 2);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.font = '7px monospace';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.font = '7.5px monospace';
     for (let y = 60; y < mapHeight - pad; y += 80) {
       const latVal = centerLat + (mapHeight / 2 - y) / 3500;
       ctx.beginPath();
@@ -2087,7 +2111,7 @@ const app = {
       ctx.lineTo(pad + 4, y);
       ctx.stroke();
       ctx.textAlign = 'left';
-      ctx.fillText(`${latVal.toFixed(4)}°N`, pad + 6, y + 2.5);
+      ctx.fillText(`${latVal.toFixed(4)}°N`, pad + 7, y + 2.5);
     }
     for (let x = 80; x < mapWidth - pad; x += 120) {
       const lngVal = centerLng + (x - mapWidth / 2) / 5500;
@@ -2096,12 +2120,12 @@ const app = {
       ctx.lineTo(x, mapHeight - pad - 4);
       ctx.stroke();
       ctx.textAlign = 'center';
-      ctx.fillText(`${lngVal.toFixed(4)}°W`, x, mapHeight - pad - 6);
+      ctx.fillText(`${lngVal.toFixed(4)}°W`, x, mapHeight - pad - 7);
     }
 
-    // Draw main accumulation circle
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.02)';
+    // 11. Draw main accumulation circle
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.7)';
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.03)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -2110,8 +2134,8 @@ const app = {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // concentric inner circles
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.12)';
+    // Concentric inner helper rings
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
     ctx.setLineDash([2, 4]);
     ctx.beginPath();
     ctx.arc(centerX, centerY, radiusPx * 0.5, 0, 2 * Math.PI);
@@ -2119,9 +2143,9 @@ const app = {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Crosshair at center
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
-    ctx.lineWidth = 1.2;
+    // Crosshair at accumulation center
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(centerX - 8, centerY);
     ctx.lineTo(centerX + 8, centerY);
@@ -2129,16 +2153,16 @@ const app = {
     ctx.lineTo(centerX, centerY + 8);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.85)';
     ctx.fillRect(centerX - 42, centerY - radiusPx - 24, 84, 17);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.strokeRect(centerX - 42, centerY - radiusPx - 24, 84, 17);
     ctx.fillStyle = '#fff';
-    ctx.font = '600 8.5px sans-serif';
+    ctx.font = 'bold 8.5px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`ZONE: ${radiusScale}km`, centerX, centerY - radiusPx - 12);
 
-    // Sonar sweep rotation animation
+    // 12. Sonar sweep line animation
     if (this.mapSweepAngle !== undefined) {
       const sweepRadius = radiusPx * 1.4;
       const sweepX = centerX + Math.cos(this.mapSweepAngle) * sweepRadius;
@@ -2146,7 +2170,7 @@ const app = {
 
       ctx.save();
       const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, sweepRadius);
-      grad.addColorStop(0, 'rgba(56, 189, 248, 0.12)');
+      grad.addColorStop(0, 'rgba(56, 189, 248, 0.15)');
       grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
       ctx.fillStyle = grad;
 
@@ -2160,7 +2184,7 @@ const app = {
       ctx.closePath();
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
@@ -2172,7 +2196,7 @@ const app = {
     let insideExposure = 0;
     let count = 0;
 
-    // Draw connection lines first so they are under the nodes
+    // Draw connection lines under the nodes
     quotes.forEach(q => {
       if (q.quoteNo === 'QT2024004' && q.latitude === 51.5074) return;
       const px = lngToX(q.longitude);
@@ -2181,7 +2205,7 @@ const app = {
       const isInside = dist <= radiusScale;
 
       if (isInside) {
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.35)';
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 2]);
         ctx.beginPath();
@@ -2192,7 +2216,7 @@ const app = {
       }
     });
 
-    // Draw points & labels
+    // Draw points & labels with shadows & high-contrast outlines
     quotes.forEach(q => {
       if (q.quoteNo === 'QT2024004' && q.latitude === 51.5074) return;
       const px = lngToX(q.longitude);
@@ -2206,10 +2230,10 @@ const app = {
         count++;
       }
 
-      let pointColor = '#10b981';
-      let colorRGB = '16, 185, 129';
-      if (q.riskCategory === 'Referred') { pointColor = '#f59e0b'; colorRGB = '245, 158, 11'; }
-      if (q.riskCategory === 'Deferred') { pointColor = '#ef4444'; colorRGB = '239, 68, 68'; }
+      let pointColor = '#059669'; // Emerald
+      let colorRGB = '5, 150, 105';
+      if (q.riskCategory === 'Referred') { pointColor = '#d97706'; colorRGB = '217, 119, 6'; }
+      if (q.riskCategory === 'Deferred') { pointColor = '#dc2626'; colorRGB = '220, 38, 38'; }
 
       const isSelected = q.quoteNo === appState.selectedQuoteNo;
       const isHovered = this.hoveredQuote && q.quoteNo === this.hoveredQuote.quoteNo;
@@ -2231,33 +2255,41 @@ const app = {
         ctx.stroke();
       }
 
+      // Drop shadow for the risk node
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 2;
+
       ctx.beginPath();
-      ctx.arc(px, py, 6, 0, 2 * Math.PI);
+      ctx.arc(px, py, 6.5, 0, 2 * Math.PI);
       ctx.fillStyle = pointColor;
       ctx.fill();
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.strokeStyle = '#fff';
       ctx.stroke();
+      ctx.restore();
 
-      // Shadowed text labels
-      ctx.font = '600 9.5px sans-serif';
+      // Shadowed labels
+      ctx.font = '600 9px sans-serif';
       const labelText = q.customerName;
       const textWidth = ctx.measureText(labelText).width;
       
-      ctx.fillStyle = 'rgba(11, 15, 25, 0.75)';
+      // Label box
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.fillRect(px + 10, py - 8, textWidth + 6, 14);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+      ctx.lineWidth = 0.8;
       ctx.strokeRect(px + 10, py - 8, textWidth + 6, 14);
 
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#1e293b'; // Slate dark text
       ctx.textAlign = 'left';
       ctx.fillText(labelText, px + 13, py + 2);
     });
 
     // Crosshair guidelines for mouse
     if (this.mousePos && this.mousePos.x !== null) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
       ctx.lineWidth = 0.8;
       ctx.setLineDash([2, 4]);
 
@@ -2272,14 +2304,14 @@ const app = {
       const mouseLat = centerLat + (mapHeight / 2 - this.mousePos.y) / 3500;
       const mouseLng = centerLng + (this.mousePos.x - mapWidth / 2) / 5500;
       
-      ctx.fillStyle = 'rgba(11, 15, 25, 0.9)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.fillRect(32, mapHeight - 48, 145, 22);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
       ctx.lineWidth = 1;
       ctx.strokeRect(32, mapHeight - 48, 145, 22);
 
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '500 8.5px monospace';
+      ctx.fillStyle = '#1d4ed8'; // Crisp blue coordinates
+      ctx.font = 'bold 8.5px monospace';
       ctx.textAlign = 'left';
       ctx.fillText(`GRID: ${mouseLat.toFixed(5)}N, ${Math.abs(mouseLng).toFixed(5)}W`, 38, mapHeight - 34);
     }
@@ -2298,51 +2330,53 @@ const app = {
       if (ttY < pad) ttY = py + 15;
 
       ctx.save();
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      // Light glassmorphic card shadow and background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
       ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
       ctx.beginPath();
       ctx.roundRect(ttX, ttY, ttW, ttH, 6);
       ctx.fill();
       ctx.shadowColor = 'transparent';
       
-      let borderStyle = 'rgba(16, 185, 129, 0.5)';
-      if (q.riskCategory === 'Referred') borderStyle = 'rgba(245, 158, 11, 0.5)';
-      if (q.riskCategory === 'Deferred') borderStyle = 'rgba(239, 68, 68, 0.5)';
+      let borderStyle = 'rgba(5, 150, 105, 0.6)';
+      if (q.riskCategory === 'Referred') borderStyle = 'rgba(217, 119, 6, 0.6)';
+      if (q.riskCategory === 'Deferred') borderStyle = 'rgba(220, 38, 38, 0.6)';
       
       ctx.strokeStyle = borderStyle;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText(q.customerName.toUpperCase(), ttX + 10, ttY + 16);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(ttX + 10, ttY + 24);
       ctx.lineTo(ttX + ttW - 10, ttY + 24);
       ctx.stroke();
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.fillStyle = '#64748b';
       ctx.font = '8px sans-serif';
       ctx.fillText('LOB / Product:', ttX + 10, ttY + 38);
       ctx.fillText('Sum Insured:', ttX + 10, ttY + 52);
       ctx.fillText('Risk Category:', ttX + 10, ttY + 66);
       ctx.fillText('Coordinates:', ttX + 10, ttY + 80);
 
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 8px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(q.lob + ' / ' + q.product, ttX + ttW - 10, ttY + 38);
       ctx.fillText(`£${q.sumInsured.toLocaleString()}`, ttX + ttW - 10, ttY + 52);
       
-      ctx.fillStyle = q.riskCategory === 'Deferred' ? '#ef4444' : q.riskCategory === 'Referred' ? '#f59e0b' : '#10b981';
+      ctx.fillStyle = q.riskCategory === 'Deferred' ? '#dc2626' : q.riskCategory === 'Referred' ? '#d97706' : '#059669';
       ctx.fillText(q.riskCategory, ttX + ttW - 10, ttY + 66);
       
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#475569';
       ctx.font = '8px monospace';
       ctx.fillText(`${q.latitude.toFixed(4)}, ${q.longitude.toFixed(4)}`, ttX + ttW - 10, ttY + 80);
 
@@ -2354,6 +2388,7 @@ const app = {
     
     const maxCap = appState.adminRules.maxCapacity;
     const capacityPercent = Math.round((insideExposure / maxCap) * 100);
+    
     document.getElementById('map-overlay-capacity-percent').textContent = `${capacityPercent}%`;
     document.getElementById('map-overlay-capacity-bar').style.width = `${Math.min(capacityPercent, 100)}%`;
 
