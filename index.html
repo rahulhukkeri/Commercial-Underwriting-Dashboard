@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Commercial Underwriting Dashboard - Candela Labs</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -446,8 +449,8 @@
 
         <div class="map-layout">
           <div class="map-viewport-container">
-            <!-- Canvas Drawing -->
-            <canvas id="map-canvas" width="800" height="500"></canvas>
+            <!-- Interactive Leaflet Map Container -->
+            <div id="map-canvas" style="height: 100%; width: 100%;"></div>
             
             <!-- Floating overlay -->
             <div class="map-overlay-card">
